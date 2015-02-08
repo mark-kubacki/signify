@@ -34,6 +34,7 @@
 
 #include "explicit_bzero.c"
 #include "strlcpy.c"
+#include "randombytes.h"
 #include "crypto_api.h"
 
 #define SIGBYTES crypto_sign_ed25519_BYTES
@@ -304,8 +305,10 @@ generate(const char *pubkeyfile, const char *seckeyfile, int rounds,
 	SHA2_CTX ctx;
 	int i, nr;
 
-	crypto_sign_ed25519_keypair(pubkey.pubkey, enckey.seckey);
-	arc4random_buf(keynum, sizeof(keynum));
+	if (randombytes(keynum, sizeof(keynum)) < 1)
+		errx(10, "generating a random keynum failed");
+	if (crypto_sign_ed25519_keypair(pubkey.pubkey, enckey.seckey) != 0)
+		errx(11, "crypto_sign_ed25519_keypair failed");
 
 	SHA512Init(&ctx);
 	SHA512Update(&ctx, enckey.seckey, sizeof(enckey.seckey));
@@ -315,7 +318,8 @@ generate(const char *pubkeyfile, const char *seckeyfile, int rounds,
 	memcpy(enckey.kdfalg, KDFALG, 2);
 	enckey.kdfrounds = htonl(rounds);
 	memcpy(enckey.keynum, keynum, KEYNUMLEN);
-	arc4random_buf(enckey.salt, sizeof(enckey.salt));
+	if (randombytes(enckey.salt, sizeof(enckey.salt)) < 1)
+		errx(10, "generating a random salt failed");
 	kdf(enckey.salt, sizeof(enckey.salt), rounds, 1, 1, xorkey, sizeof(xorkey));
 	memcpy(enckey.checksum, digest, sizeof(enckey.checksum));
 	for (i = 0; i < sizeof(enckey.seckey); i++)

@@ -6,6 +6,7 @@
  * Copied from supercop-20130419/crypto_sign/ed25519/ref/ed25519.c
  */
 
+#include "randombytes.h"
 #include "crypto_api.h"
 
 #include "ge25519.h"
@@ -32,7 +33,7 @@ int crypto_sign_ed25519_keypair(
   unsigned char extsk[64];
   int i;
 
-  randombytes(sk, 32);
+  if (randombytes(sk, 32) < 1) return (-1);
   crypto_hash_sha512(extsk, sk, 32);
   extsk[0] &= 248;
   extsk[31] &= 127;
