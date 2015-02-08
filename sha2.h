@@ -37,6 +37,8 @@
 #ifndef _SHA2_H
 #define _SHA2_H
 
+#include <sys/types.h>
+
 #ifndef __OpenBSD__
 #define __bounded__(a,b,c)
 #endif
