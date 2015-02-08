@@ -79,7 +79,8 @@ usage(const char *error)
 {
 	if (error)
 		fprintf(stderr, "%s\n", error);
-	fprintf(stderr, "usage:"
+	fprintf(stderr, "Ported from OpenBSD. https://github.com/Blitznote/signify\n\n"
+	    "usage:"
 #ifndef VERIFYONLY
 	    "\t%1$s -C [-q] -p pubkey -x sigfile [file ...]\n"
 	    "\t%1$s -G [-n] [-c comment] -p pubkey -s seckey\n"
