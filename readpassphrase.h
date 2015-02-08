@@ -33,8 +33,6 @@
 
 #include <sys/cdefs.h>
 
-__BEGIN_DECLS
 char * readpassphrase(const char *, char *, size_t, int);
-__END_DECLS
 
 #endif /* !_READPASSPHRASE_H_ */
