@@ -30,9 +30,10 @@
 #include <err.h>
 #include <unistd.h>
 #include <readpassphrase.h>
-#include <util.h>
 #include <sha2.h>
 
+#include "explicit_bzero.c"
+#include "strlcpy.c"
 #include "crypto_api.h"
 
 #define SIGBYTES crypto_sign_ed25519_BYTES

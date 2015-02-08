@@ -23,6 +23,8 @@
 #include <sha2.h>
 #include <string.h>
 
+#include "explicit_bzero.c"
+
 /*
  * pkcs #5 pbkdf2 implementation using the "bcrypt" hash
  *
