@@ -1,5 +1,6 @@
 Signify ported from OpenBSD to Linux
 =====================================
+[![Build Status](https://drone.io/github.com/Blitznote/signify/status.png)](https://drone.io/github.com/Blitznote/signify/latest)
 
 with these differences:
  * Randomness is provided by syscall 'getrandom' to Linux (>= 3.18)
