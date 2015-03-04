@@ -14,9 +14,6 @@ and if you are permitted to use them in another work.
 Usage
 ------
 
-You still need to distribute your signing keys separately,
-by a different channel, to be trustworthy.
-
 In this example the binary file *signify* gets signed and verified:
 ```bash
 # generate a keypair
