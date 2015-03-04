@@ -121,17 +121,28 @@ rdrand_fill_array (size_t *array, size_t size)
 		"jecxz end_of_rdrand_loop%=;\n"	// jump if ecx (size) == 0
 
 		"top_of_rdrand_loop%=:\n"
+#ifdef __LP64__
 		"rdrand %%rax;\n"		// Generate random value
 		"jnc end_of_rdrand_loop%=;\n"	// bail on first failure
 		"mov %%rax, (%1);\n "		// Store value in array
 		"add $8, %1;\n "		// Move array to next spot
+#else
+		"rdrand %%eax;\n"
+		"jnc end_of_rdrand_loop%=;\n"
+		"mov %%eax, (%1);\n "
+		"add $4, %1;\n "
+#endif
 		"loop top_of_rdrand_loop%=;\n"	// --ecx; jump if ecx > 0
 
 		"end_of_rdrand_loop%=:\n"
 		"sub %4, %0;\n"			// filled = size - remaining
 		: "=r" (successes), "=r"(array)
 		: "0" (successes), "1"(array), "c" (size)
+#ifdef __LP64__
 		: "%rax"
+#else
+		: "%eax"
+#endif
 	);
 
 	return successes;
