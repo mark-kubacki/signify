@@ -64,6 +64,7 @@
 
 #endif // !defined(SYS_getrandom)
 
+#ifdef SYS_getrandom
 // see <linux>/include/uapi/linux/random.h
 #ifndef GRND_NONBLOCK
 #define GRND_NONBLOCK 0x0001
@@ -109,7 +110,7 @@ sys_getrandom (unsigned char *buf, size_t buflen)
 	return sys_getrandom_ex(buf, buflen, GRND_RANDOM);
 }
 
-/* END: Linux >= 3.18 system call 'getrandom' */
+#endif // defined(SYS_getrandom)
 
 NOOPT NOINLINE size_t
 rdrand_fill_array (size_t *array, size_t size)
@@ -167,9 +168,13 @@ rdrand_getrandom (unsigned char *buf, size_t buflen)
 int
 randombytes (unsigned char *buf, size_t buflen)
 {
+#ifdef SYS_getrandom
 	if (sys_getpseudorandom(buf, buflen) == 1) {
 		return 1;
 	}
+#else
+#warning "unknown syscall number: SYS_getrandom"
+#endif
 
 	if (rdrand_getrandom(buf, buflen) == 1) {
 		return 1;
