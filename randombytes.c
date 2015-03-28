@@ -16,6 +16,13 @@
 #ifdef HAVE_SYS_SYSCTL_H
 #include <sys/sysctl.h>
 #endif
+#include "cpuid.h"
+#ifndef bit_RDRND
+#define bit_RDRND (1 << 30)
+#endif
+#ifndef bit_RDSEED
+#define bit_RDSEED (1 << 18)
+#endif
 
 #include <randombytes.h>
 
@@ -112,6 +119,24 @@ sys_getrandom (unsigned char *buf, size_t buflen)
 
 #endif // defined(SYS_getrandom)
 
+
+/* START: RDRAND and RDSEED support */
+#ifdef CPU_RAND
+static int cached_cpu_supports_rdrand;
+static int cached_cpu_supports_rdseed;
+
+void __attribute__((constructor))
+init_cpu_support_flag(void)
+{
+	unsigned int eax=0, ebx=0, ecx=0, edx=0;
+	__cpuid(1, eax, ebx, ecx, edx);
+	cached_cpu_supports_rdrand = !!(ecx & bit_RDRND);
+	eax=0, ebx=0, ecx=0, edx=0;
+	__cpuid(7, eax, ebx, ecx, edx);
+	cached_cpu_supports_rdseed = !!(ebx & bit_RDSEED);
+}
+
+
 NOOPT NOINLINE size_t
 rdrand_fill_array (size_t *array, size_t size)
 {
@@ -171,6 +196,9 @@ rdrand_getrandom (unsigned char *buf, size_t buflen)
 	return 1;
 }
 
+#endif // defined(CPU_RAND)
+
+
 /* Fails if not Linux with syscall 'gentrandom' or if
  * the CPU doesn't have RDRAND instruction set.
  *
@@ -187,9 +215,13 @@ randombytes (unsigned char *buf, size_t buflen)
 #warning "unknown syscall number: SYS_getrandom"
 #endif
 
-	if (rdrand_getrandom(buf, buflen) == 1) {
+#ifdef CPU_RAND
+	if (cached_cpu_supports_rdrand && rdrand_getrandom(buf, buflen) == 1) {
 		return 1;
 	}
+#else
+#warning "architecture without built-in random number generator"
+#endif
 
 	return (-1);
 }

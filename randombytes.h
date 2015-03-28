@@ -28,11 +28,17 @@ int sys_getpseudorandom (unsigned char*, size_t)
 int sys_getrandom (unsigned char*, size_t)
 	__attribute__((nonnull));
 
+#if (defined(__i386)   || defined(__i386__)   || defined(_M_IX86) || \
+     defined(__x86_64) || defined(__x86_64__))
+#define CPU_RAND
+
 size_t rdrand_fill_array (size_t*, size_t)
 	__attribute__((nonnull));
 
 int rdrand_getrandom (unsigned char*, size_t)
 	__attribute__((nonnull));
+
+#endif // x86 or amd64
 
 /* Fails if not Linux with syscall 'getrandom' or if
  * the CPU doesn't have RDRAND instruction set.
