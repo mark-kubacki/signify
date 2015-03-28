@@ -19,21 +19,27 @@
 #define GRND_RANDOM 0x0002
 #endif
 
-int sys_getrandom_ex (const unsigned char*, size_t, const unsigned int);
+int sys_getrandom_ex (const unsigned char*, size_t, const unsigned int)
+	__attribute__((nonnull));
 
-int sys_getpseudorandom (unsigned char*, size_t);
+int sys_getpseudorandom (unsigned char*, size_t)
+	__attribute__((nonnull));
 
-int sys_getrandom (unsigned char*, size_t);
+int sys_getrandom (unsigned char*, size_t)
+	__attribute__((nonnull));
 
-size_t rdrand_fill_array (size_t*, size_t);
+size_t rdrand_fill_array (size_t*, size_t)
+	__attribute__((nonnull));
 
-int rdrand_getrandom (unsigned char*, size_t);
+int rdrand_getrandom (unsigned char*, size_t)
+	__attribute__((nonnull));
 
-/* Fails if not Linux with syscall 'gentrandom' or if
+/* Fails if not Linux with syscall 'getrandom' or if
  * the CPU doesn't have RDRAND instruction set.
  *
- * Kill-or-fill. Return 1 on success.
+ * Kill-or-fill. Returns 1 on success.
  */
-int randombytes (unsigned char*, size_t);
+int randombytes (unsigned char*, size_t)
+	__attribute__((nonnull));
 
 #endif

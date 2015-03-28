@@ -9,7 +9,7 @@ SRCS+=	shafile.c randombytes.c
 
 OBJS=$(patsubst %.c,%.o,$(SRCS))
 
-CC=gcc -D_DEFAULT_SOURCE -DHAVE_SYS_SYSCALL_H
+CC=gcc -D_DEFAULT_SOURCE -DHAVE_SYS_SYSCALL_H -Wnonnull
 CFLAGS=-Os -march=corei7 -mtune=corei7 -pipe -ffunction-sections -fdata-sections -finline-functions -funroll-loops
 LDFLAGS=-s -static -Wl,--gc-sections
 LDLIBS=
