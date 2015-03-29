@@ -26,33 +26,6 @@
 
 #include <randombytes.h>
 
-#if __clang__
-	/*
-	 * http://clang.llvm.org/docs/LanguageExtensions.html#feature-checking-macros
-	 * http://lists.cs.uiuc.edu/pipermail/cfe-dev/2014-December/040627.html
-	 */
-	#if __has_attribute( noinline ) && __has_attribute( optnone )
-		#define NOOPT __attribute__ (( optnone ))
-		#define NOINLINE __attribute__ (( noinline ))
-	#else
-		#error "require clang with noinline and optnone attributes"
-	#endif
-#elif __GNUC__
-	/*
-	 * http://gcc.gnu.org/onlinedocs/gcc/Function-Specific-Option-Pragmas.html
-	 * http://gcc.gnu.org/onlinedocs/gcc/Function-Attributes.html
-	 */
-	#if __GNUC__ > 4 || ( __GNUC__ == 4 && __GNUC_MINOR__ >= 4 )
-		#define NOOPT __attribute__ (( optimize( 0 ) ))
-		#define NOINLINE __attribute__ (( noinline ))
-	#else
-		#error "require gcc >= 4.4"
-	#endif
-#else
-	#error "unrecognised compiler"
-	explode
-#endif
-
 /* START: Linux >= 3.18 system call 'getrandom' */
 #ifndef SYS_getrandom
 
@@ -136,41 +109,36 @@ init_cpu_support_flag(void)
 	cached_cpu_supports_rdseed = !!(ebx & bit_RDSEED);
 }
 
-
-NOOPT NOINLINE size_t
+/* Fills the 'array' of size 'size' with random numbers.
+ * Is not guaranteed to fill every cell (due to unavailable entropy)
+ * but at least returns the count of filled cells so you could retry.
+ */
+size_t
 rdrand_fill_array (size_t *array, size_t size)
 {
-	size_t successes = size;
+	if (size == 0) {
+		return 0;
+	}
+	size_t total = size;
 
-	__asm volatile(
-		"jecxz end_of_rdrand_loop%=;\n"	// jump if ecx (size) == 0
-
-		"top_of_rdrand_loop%=:\n"
-#ifdef __LP64__
-		"rdrand %%rax;\n"		// Generate random value
-		"jnc end_of_rdrand_loop%=;\n"	// bail on first failure
-		"mov %%rax, (%1);\n "		// Store value in array
-		"add $8, %1;\n "		// Move array to next spot
-#else
-		"rdrand %%eax;\n"
-		"jnc end_of_rdrand_loop%=;\n"
-		"mov %%eax, (%1);\n "
-		"add $4, %1;\n "
-#endif
-		"loop top_of_rdrand_loop%=;\n"	// --ecx; jump if ecx > 0
-
-		"end_of_rdrand_loop%=:\n"
-		"sub %4, %0;\n"			// filled = size - remaining
-		: "=r" (successes), "=r"(array)
-		: "0" (successes), "1"(array), "c" (size)
-#ifdef __LP64__
-		: "%rax"
-#else
-		: "%eax"
-#endif
-	);
-
-	return successes;
+	do {
+		size_t scratch;
+	#if defined(__clang__) || defined(__INTEL_COMPILER)
+		int ok;
+		asm volatile("rdrand %1\n"
+			"setc %0"
+			: "=qm"(ok), "=a"(scratch));
+		if (!ok) break;
+	#else /* GCC */
+		asm volatile("rdrand %0" : "=a"(scratch));
+		asm goto("jnc %l0" :::: end);
+	#endif
+		*array = scratch;
+		++array;
+		--size;
+	} while(size > 0);
+end:
+	return (total - size);
 }
 
 int
