@@ -24,6 +24,11 @@
 #define bit_RDSEED (1 << 18)
 #endif
 
+#if !defined(likely)
+#define likely(x)       __builtin_expect(!!(x), 1)
+#define unlikely(x)     __builtin_expect(!!(x), 0)
+#endif
+
 #include <randombytes.h>
 
 /* START: Linux >= 3.18 system call 'getrandom' */
@@ -65,8 +70,8 @@ sys_getrandom_ex (const unsigned char *buf, size_t buflen, const unsigned int fl
 
 		do {
 			ret = syscall(SYS_getrandom, p, chunk, flags);
-		} while (ret == -1 && errno == EINTR);
-		if (ret < 0) return ret;
+		} while (unlikely(ret == -1 && errno == EINTR));
+		if (unlikely(ret < 0)) return ret;
 
 		p += ret;
 		buflen -= ret;
@@ -79,14 +84,14 @@ sys_getrandom_ex (const unsigned char *buf, size_t buflen, const unsigned int fl
 int
 sys_getpseudorandom (unsigned char *buf, size_t buflen)
 {
-	if (buflen < 0) return (-1);
+	if (unlikely(buflen < 0)) return (-1);
 	return sys_getrandom_ex(buf, buflen, GRND_NONBLOCK);
 }
 
 int
 sys_getrandom (unsigned char *buf, size_t buflen)
 {
-	if (buflen < 0) return (-1);
+	if (unlikely(buflen < 0)) return (-1);
 	return sys_getrandom_ex(buf, buflen, GRND_RANDOM);
 }
 
@@ -116,7 +121,7 @@ init_cpu_support_flag(void)
 size_t
 rdrand_fill_array (size_t *array, size_t size)
 {
-	if (size == 0) {
+	if (unlikely(size == 0)) {
 		return 0;
 	}
 	size_t total = size;
@@ -128,7 +133,7 @@ rdrand_fill_array (size_t *array, size_t size)
 		asm volatile("rdrand %1\n"
 			"setc %0"
 			: "=qm"(ok), "=a"(scratch));
-		if (!ok) break;
+		if (unlikely(!ok)) break;
 	#else /* GCC */
 		asm volatile("rdrand %0" : "=a"(scratch));
 		asm goto("jnc %l0" :::: end);
@@ -136,7 +141,7 @@ rdrand_fill_array (size_t *array, size_t size)
 		*array = scratch;
 		++array;
 		--size;
-	} while(size > 0);
+	} while(likely(size > 0));
 end:
 	return (total - size);
 }
@@ -148,12 +153,12 @@ rdrand_getrandom (unsigned char *buf, size_t buflen)
 	buflen = buflen % sizeof(size_t);
 	size_t *p = (size_t *)buf;
 
-	if (rdrand_fill_array(p, num_qwords) != num_qwords) {
+	if (unlikely(rdrand_fill_array(p, num_qwords) != num_qwords)) {
 		return (-1); // happens on rand-busy AVX-less machines
 	}
 	p+=num_qwords;
 	// due to num < sizeof(size_t) a single size_t suffices
-	if (buflen > 0) {
+	if (unlikely(buflen > 0)) {
 		// use num_qwords as scratch space
 		if (rdrand_fill_array(&num_qwords, 1) != 1) {
 			return (-2);
