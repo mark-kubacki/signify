@@ -25,3 +25,33 @@ signify_verify: $(SRCS)
 
 clean:
 	-rm -f *.o signify signify_verify
+
+integration-test: signify
+	@tmpdir=`mktemp --tmpdir -d`; trap 'rm -rf "$$tmpdir"' EXIT; cd "$$tmpdir"; \
+	   printf "geheim\ngeheim\n" | $(CURDIR)/signify -G -c "somecomment" -p foo.pub -s foo.sec \
+	&& printf "geheim\ngeheim\n" | $(CURDIR)/signify -G -c "somecomment" -p bar.pub -s bar.sec \
+	&& ! cmp foo.pub bar.pub >/dev/null && ! cmp foo.sec bar.sec >/dev/null \
+	&& >&2 printf "seems to create distinct keypairs\n"
+
+	@tmpdir=`mktemp --tmpdir -d`; trap 'rm -rf "$$tmpdir"' EXIT; cd "$$tmpdir"; \
+	   printf "geheim\ngeheim\n" | $(CURDIR)/signify -G -c "somecomment" -p foo.pub -s foo.sec \
+	&& printf "geheim\n" | $(CURDIR)/signify -S -x foo-signed.sig -s foo.sec -m $(CURDIR)/signify \
+	&&   $(CURDIR)/signify -V -x foo-signed.sig -p foo.pub -m $(CURDIR)/signify >/dev/null \
+	&& sed -i -e 's:1:2:g' foo-signed.sig \
+	&& ! $(CURDIR)/signify -V -x foo-signed.sig -p foo.pub -m $(CURDIR)/signify >/dev/null 2>&1 \
+	&& >&2 printf "signing and verifying seems to work\n"
+
+	@tmpdir=`mktemp --tmpdir -d`; trap 'rm -rf "$$tmpdir"' EXIT; cd "$$tmpdir"; \
+	curl --fail --silent --show-error -LR --remote-name-all \
+		https://github.com/Blitznote/signify/releases/download/1.100/mark.pub \
+		https://github.com/Blitznote/signify/releases/download/1.100/signify.sig \
+		https://github.com/Blitznote/signify/releases/download/1.100/signify \
+	&& mv signify some-binary \
+	&& >&2 $(CURDIR)/signify -V -x signify.sig -p mark.pub -m some-binary
+
+	@tmpdir=`mktemp --tmpdir -d`; trap 'rm -rf "$$tmpdir"' EXIT; cd "$$tmpdir"; \
+	curl --fail --silent --show-error -LR --remote-name-all \
+		http://ftp.hostserver.de/pub/OpenBSD/5.6/amd64/SHA256.sig \
+		https://github.com/jpouellet/signify-osx/raw/master/src/etc/signify/openbsd-56-base.pub \
+	&& $(CURDIR)/signify -Vep openbsd-56-base.pub -x SHA256.sig -m - > /dev/null \
+	&& >&2 printf "compatible with OpenBSD's way of signing\n"
