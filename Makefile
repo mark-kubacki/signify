@@ -26,7 +26,20 @@ signify_verify: $(SRCS)
 clean:
 	-rm -f *.o signify signify_verify
 
+CPUFLAGS	:= $(shell sh -c 'grep --max-count=1 -F flags /proc/cpuinfo 2>/dev/null || echo not')
+GE_LINUX_3_17	:= $(shell sh -c 'printf "3.16.9999\n`uname -r`\n" | sort --reverse -V | head -n 1 | grep -q -F "`uname -r`" && echo aye || echo not')
+ifneq (,$(findstring rdrand,$(CPUFLAGS)))
+	HOST_HAS_RAND = Yes
+else
+	ifneq (,$(findstring aye,$(GE_LINUX_3_17)))
+		HOST_HAS_RAND = Yes
+	endif
+endif
+
 integration-test: signify
+ifndef HOST_HAS_RAND
+	@echo "old host CPU; some tests have been skipped" >&2
+else
 	@tmpdir=`mktemp --tmpdir -d`; trap 'rm -rf "$$tmpdir"' EXIT; cd "$$tmpdir"; \
 	   printf "geheim\ngeheim\n" | $(CURDIR)/signify -G -c "somecomment" -p foo.pub -s foo.sec \
 	&& printf "geheim\ngeheim\n" | $(CURDIR)/signify -G -c "somecomment" -p bar.pub -s bar.sec \
@@ -36,10 +49,11 @@ integration-test: signify
 	@tmpdir=`mktemp --tmpdir -d`; trap 'rm -rf "$$tmpdir"' EXIT; cd "$$tmpdir"; \
 	   printf "geheim\ngeheim\n" | $(CURDIR)/signify -G -c "somecomment" -p foo.pub -s foo.sec \
 	&& printf "geheim\n" | $(CURDIR)/signify -S -x foo-signed.sig -s foo.sec -m $(CURDIR)/signify \
-	&&   $(CURDIR)/signify -V -x foo-signed.sig -p foo.pub -m $(CURDIR)/signify >/dev/null \
-	&& sed -i -e 's:1:2:g' foo-signed.sig \
-	&& ! $(CURDIR)/signify -V -x foo-signed.sig -p foo.pub -m $(CURDIR)/signify >/dev/null 2>&1 \
+	&&   $(CURDIR)/signify -V -x foo-signed.sig  -p foo.pub -m $(CURDIR)/signify >/dev/null \
+	&& cat foo-signed.sig | tr '[a-z]' '[b-z]a' > manipulated.sig \
+	&& ! $(CURDIR)/signify -V -x manipulated.sig -p foo.pub -m $(CURDIR)/signify >/dev/null 2>&1 \
 	&& >&2 printf "signing and verifying seems to work\n"
+endif
 
 	@tmpdir=`mktemp --tmpdir -d`; trap 'rm -rf "$$tmpdir"' EXIT; cd "$$tmpdir"; \
 	curl --fail --silent --show-error -LR --remote-name-all \
