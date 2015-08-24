@@ -18,10 +18,10 @@ LDLIBS=
 	$(CC) $(CFLAGS) -I. -c $^
 
 signify: $(OBJS)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o signify $^ -I. $(LDLIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -fwhole-program -o signify $^ -I. $(LDLIBS)
 
 signify_verify: $(SRCS)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o signify_verify $^ -I. $(LDLIBS) -DVERIFYONLY
+	$(CC) $(CFLAGS) $(LDFLAGS) -fwhole-program -o signify_verify $^ -I. $(LDLIBS) -DVERIFYONLY
 
 clean:
 	-rm -f *.o signify signify_verify
