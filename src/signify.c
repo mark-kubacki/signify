@@ -36,6 +36,7 @@
 #include "strlcpy.c"
 #include "randombytes.h"
 #include "crypto_api.h"
+#include "bcrypt_pbkdf.c"
 
 #define SIGBYTES crypto_sign_ed25519_BYTES
 #define SECRETBYTES crypto_sign_ed25519_SECRETKEYBYTES
