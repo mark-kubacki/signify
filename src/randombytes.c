@@ -31,24 +31,6 @@
 
 #include <randombytes.h>
 
-/* START: Linux >= 3.18 system call 'getrandom' */
-#ifndef SYS_getrandom
-
-#if (defined(__i386)   || defined(__i386__)   || defined(_M_IX86) || \
-     defined(__x86_64) || defined(__x86_64__))
-#ifdef __LP64__
-#define SYS_getrandom 318
-#else
-#define SYS_getrandom 355
-#endif // __LP64__
-#endif // x86 or amd64
-
-#ifdef __aarch64__
-#define SYS_getrandom 384
-#endif
-
-#endif // !defined(SYS_getrandom)
-
 #ifdef SYS_getrandom
 // see <linux>/include/uapi/linux/random.h
 #ifndef GRND_NONBLOCK
