@@ -6,6 +6,8 @@
 
   * *GCC 4.9* or later
 
+  * Seccomp library, `libseccomp-dev` for Ubuntu and `sys-libs/libseccomp` for Gentoo
+
   * (optional)[Ninja](https://ninja-build.org/), known as `ninja-build` to *apt* and `dev-util/ninja` to *portage*
 
   * (optional)BASH to run the tests

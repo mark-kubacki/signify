@@ -37,6 +37,9 @@
 #include "crypto_api.h"
 #define randombytes(x, y) (arc4random_buf((x), (y)))
 #else
+#include <sys/prctl.h>
+#include <seccomp.h>
+
 #include "explicit_bzero.c"
 #include "strlcpy.c"
 #include "randombytes.h"
@@ -766,6 +769,66 @@ main(int argc, char **argv)
 		break;
 	}
 #endif /* __OpenBSD__ */
+#ifdef __gnu_linux__
+	prctl(PR_SET_NO_NEW_PRIVS, 1);
+	prctl(PR_SET_DUMPABLE, 0);
+
+	scmp_filter_ctx ctx;
+	ctx = seccomp_init(SCMP_ACT_KILL); // results in SIGSYS and an entry in the kernel log
+	seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(rt_sigreturn), 0);
+	seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(exit_group), 0);
+	seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(exit), 0);
+	seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(close), 0);
+
+	switch (verb) {
+	case GENERATE:
+	case SIGN:
+		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(getrandom), 0);
+		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 0);
+		break;
+	case VERIFY:
+		if (embedded) { // due to 'dup' we don't know the fileno in advance
+			seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 0);
+			break;
+		}
+	case CHECK:
+		// mark, 2016-01-19: {2, GE, LE} does not work
+		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 1,
+			SCMP_CMP(0, SCMP_CMP_EQ, STDOUT_FILENO));
+		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 1,
+			SCMP_CMP(0, SCMP_CMP_EQ, STDERR_FILENO));
+	}
+
+	switch (verb) {
+	case GENERATE:
+	case SIGN:
+	case CHECK:
+	case VERIFY:
+		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0);
+		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(open), 0);
+		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(read), 0);
+
+		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(ioctl), 0);
+		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(mmap), 2,
+			SCMP_A0(SCMP_CMP_EQ, (size_t)NULL),
+			SCMP_A5(SCMP_CMP_EQ, 0)
+		);
+		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(munmap), 2,
+			SCMP_A0(SCMP_CMP_NE, (size_t)NULL),
+			SCMP_A1(SCMP_CMP_GE, 0)
+		);
+		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(rt_sigaction), 0);
+
+		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(dup), 0);
+		break;
+	default:
+		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 1,
+			SCMP_CMP(0, SCMP_CMP_EQ, STDERR_FILENO));
+		break;
+	}
+
+	seccomp_load(ctx);
+#endif /* __gnu_linux__ */
 
 #ifndef VERIFYONLY
 	if (verb == CHECK) {

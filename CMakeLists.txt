@@ -9,3 +9,4 @@ include_directories(include)
 file(GLOB SOURCES "src/*.c")
 
 add_executable(signify ${SOURCES})
+TARGET_LINK_LIBRARIES(signify seccomp)
