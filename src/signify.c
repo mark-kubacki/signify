@@ -1,4 +1,4 @@
-/* $OpenBSD: signify.c,v 1.100 2015/01/16 06:16:12 tedu Exp $ */
+/* $OpenBSD: signify.c,v 1.105 2015/12/04 11:05:22 tedu Exp $ */
 /*
  * Copyright (c) 2013 Ted Unangst <tedu@openbsd.org>
  *
@@ -30,13 +30,10 @@
 #include <err.h>
 #include <unistd.h>
 #include <readpassphrase.h>
+#include <util.h>
 #include <sha2.h>
 
-#include "explicit_bzero.c"
-#include "strlcpy.c"
-#include "randombytes.h"
 #include "crypto_api.h"
-#include "bcrypt_pbkdf.c"
 
 #define SIGBYTES crypto_sign_ed25519_BYTES
 #define SECRETBYTES crypto_sign_ed25519_SECRETKEYBYTES
@@ -75,13 +72,12 @@ struct sig {
 
 extern char *__progname;
 
-static void
+static void __dead
 usage(const char *error)
 {
 	if (error)
 		fprintf(stderr, "%s\n", error);
-	fprintf(stderr, "Ported from OpenBSD. https://github.com/Blitznote/signify\n\n"
-	    "usage:"
+	fprintf(stderr, "usage:"
 #ifndef VERIFYONLY
 	    "\t%1$s -C [-q] -p pubkey -x sigfile [file ...]\n"
 	    "\t%1$s -G [-n] [-c comment] -p pubkey -s seckey\n"
@@ -307,10 +303,8 @@ generate(const char *pubkeyfile, const char *seckeyfile, int rounds,
 	SHA2_CTX ctx;
 	int i, nr;
 
-	if (randombytes(keynum, sizeof(keynum)) < 1)
-		errx(10, "generating a random keynum failed");
-	if (crypto_sign_ed25519_keypair(pubkey.pubkey, enckey.seckey) != 0)
-		errx(11, "crypto_sign_ed25519_keypair failed");
+	crypto_sign_ed25519_keypair(pubkey.pubkey, enckey.seckey);
+	arc4random_buf(keynum, sizeof(keynum));
 
 	SHA512Init(&ctx);
 	SHA512Update(&ctx, enckey.seckey, sizeof(enckey.seckey));
@@ -320,8 +314,7 @@ generate(const char *pubkeyfile, const char *seckeyfile, int rounds,
 	memcpy(enckey.kdfalg, KDFALG, 2);
 	enckey.kdfrounds = htonl(rounds);
 	memcpy(enckey.keynum, keynum, KEYNUMLEN);
-	if (randombytes(enckey.salt, sizeof(enckey.salt)) < 1)
-		errx(10, "generating a random salt failed");
+	arc4random_buf(enckey.salt, sizeof(enckey.salt));
 	kdf(enckey.salt, sizeof(enckey.salt), rounds, 1, 1, xorkey, sizeof(xorkey));
 	memcpy(enckey.checksum, digest, sizeof(enckey.checksum));
 	for (i = 0; i < sizeof(enckey.seckey); i++)
@@ -374,7 +367,7 @@ sign(const char *seckeyfile, const char *msgfile, const char *sigfile,
 	SHA512Update(&ctx, enckey.seckey, sizeof(enckey.seckey));
 	SHA512Final(digest, &ctx);
 	if (memcmp(enckey.checksum, digest, sizeof(enckey.checksum)) != 0)
-	    errx(1, "incorrect passphrase");
+		errx(1, "incorrect passphrase");
 	explicit_bzero(digest, sizeof(digest));
 
 	msg = readmsg(msgfile, &msglen);
@@ -566,9 +559,8 @@ verifychecksum(struct checksum *c, int quiet)
 	} else {
 		errx(1, "can't handle algorithm %s", c->algo);
 	}
-	if (strcmp(c->hash, buf) != 0) {
+	if (strcmp(c->hash, buf) != 0)
 		return 0;
-	}
 	if (!quiet)
 		printf("%s: OK\n", c->file);
 	return 1;
@@ -670,6 +662,8 @@ main(int argc, char **argv)
 		VERIFY
 	} verb = NONE;
 
+	if (pledge("stdio rpath wpath cpath tty", NULL) == -1)
+		err(1, "pledge");
 
 	rounds = 42;
 
@@ -728,6 +722,33 @@ main(int argc, char **argv)
 	}
 	argc -= optind;
 	argv += optind;
+
+	if (setvbuf(stdout, NULL, _IOLBF, 0) != 0)
+		err(1, "setvbuf");
+
+	switch (verb) {
+	case GENERATE:
+	case SIGN:
+		/* keep it all */
+		break;
+	case CHECK:
+		if (pledge("stdio rpath", NULL) == -1)
+			err(1, "pledge");
+		break;
+	case VERIFY:
+		if (embedded && (!msgfile || strcmp(msgfile, "-") != 0)) {
+			if (pledge("stdio rpath wpath cpath", NULL) == -1)
+				err(1, "pledge");
+		} else {
+			if (pledge("stdio rpath", NULL) == -1)
+				err(1, "pledge");
+		}
+		break;
+	default:
+		if (pledge("stdio", NULL) == -1)
+			err(1, "pledge");
+		break;
+	}
 
 #ifndef VERIFYONLY
 	if (verb == CHECK) {
