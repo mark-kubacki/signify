@@ -30,10 +30,19 @@
 #include <err.h>
 #include <unistd.h>
 #include <readpassphrase.h>
-#include <util.h>
 #include <sha2.h>
 
+#ifdef __OpenBSD__
+#include <util.h>
 #include "crypto_api.h"
+#define randombytes(x, y) (arc4random_buf((x), (y)))
+#else
+#include "explicit_bzero.c"
+#include "strlcpy.c"
+#include "randombytes.h"
+#include "crypto_api.h"
+#include "bcrypt_pbkdf.c"
+#endif
 
 #define SIGBYTES crypto_sign_ed25519_BYTES
 #define SECRETBYTES crypto_sign_ed25519_SECRETKEYBYTES
@@ -72,12 +81,13 @@ struct sig {
 
 extern char *__progname;
 
-static void __dead
+static void
 usage(const char *error)
 {
 	if (error)
 		fprintf(stderr, "%s\n", error);
-	fprintf(stderr, "usage:"
+	fprintf(stderr, "Ported from OpenBSD. https://github.com/Blitznote/signify\n\n"
+	    "usage:"
 #ifndef VERIFYONLY
 	    "\t%1$s -C [-q] -p pubkey -x sigfile [file ...]\n"
 	    "\t%1$s -G [-n] [-c comment] -p pubkey -s seckey\n"
@@ -303,8 +313,10 @@ generate(const char *pubkeyfile, const char *seckeyfile, int rounds,
 	SHA2_CTX ctx;
 	int i, nr;
 
-	crypto_sign_ed25519_keypair(pubkey.pubkey, enckey.seckey);
-	arc4random_buf(keynum, sizeof(keynum));
+	if (randombytes(keynum, sizeof(keynum)) < 1)
+		errx(10, "generating a random keynum failed");
+	if (crypto_sign_ed25519_keypair(pubkey.pubkey, enckey.seckey) != 0)
+		errx(11, "crypto_sign_ed25519_keypair failed");
 
 	SHA512Init(&ctx);
 	SHA512Update(&ctx, enckey.seckey, sizeof(enckey.seckey));
@@ -314,7 +326,8 @@ generate(const char *pubkeyfile, const char *seckeyfile, int rounds,
 	memcpy(enckey.kdfalg, KDFALG, 2);
 	enckey.kdfrounds = htonl(rounds);
 	memcpy(enckey.keynum, keynum, KEYNUMLEN);
-	arc4random_buf(enckey.salt, sizeof(enckey.salt));
+	if (randombytes(enckey.salt, sizeof(enckey.salt)) < 1)
+		errx(10, "generating a random salt failed");
 	kdf(enckey.salt, sizeof(enckey.salt), rounds, 1, 1, xorkey, sizeof(xorkey));
 	memcpy(enckey.checksum, digest, sizeof(enckey.checksum));
 	for (i = 0; i < sizeof(enckey.seckey); i++)
@@ -662,8 +675,10 @@ main(int argc, char **argv)
 		VERIFY
 	} verb = NONE;
 
+#ifdef __OpenBSD__
 	if (pledge("stdio rpath wpath cpath tty", NULL) == -1)
 		err(1, "pledge");
+#endif /* __OpenBSD__ */
 
 	rounds = 42;
 
@@ -726,6 +741,7 @@ main(int argc, char **argv)
 	if (setvbuf(stdout, NULL, _IOLBF, 0) != 0)
 		err(1, "setvbuf");
 
+#ifdef __OpenBSD__
 	switch (verb) {
 	case GENERATE:
 	case SIGN:
@@ -749,6 +765,7 @@ main(int argc, char **argv)
 			err(1, "pledge");
 		break;
 	}
+#endif /* __OpenBSD__ */
 
 #ifndef VERIFYONLY
 	if (verb == CHECK) {
