@@ -783,7 +783,9 @@ main(int argc, char **argv)
 	switch (verb) {
 	case GENERATE:
 	case SIGN:
+#ifdef __NR_getrandom
 		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(getrandom), 0);
+#endif
 		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 0);
 		break;
 	case VERIFY:
