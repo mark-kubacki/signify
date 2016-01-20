@@ -5,7 +5,7 @@ Signify ported from OpenBSD to Linux
 with these differences:
  * Randomness is provided by syscall 'getrandom' to Linux (>= 3.18)
  * or RDRAND.
- * Compiles to a static binary of less than 180KiB.
+ * Compiles to a static binary of less than 180KiB (less than 270KiB with *Seccomp* and *musl-libc*).
 
 The resulting binary is licensed under the same terms as OpenBSD's *signify*.
 For the sources — please see the source files for their licensing terms,

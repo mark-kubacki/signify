@@ -779,6 +779,10 @@ main(int argc, char **argv)
 	seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(exit_group), 0);
 	seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(exit), 0);
 	seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(close), 0);
+#ifndef __GLIBC__
+	seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SYS_writev, 0);
+	seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SYS_brk, 0);
+#endif
 
 	switch (verb) {
 	case GENERATE:
@@ -791,6 +795,9 @@ main(int argc, char **argv)
 #endif
 #endif
 		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 0);
+#ifndef __GLIBC__
+		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SYS_rt_sigprocmask, 0);
+#endif
 		break;
 	case VERIFY:
 		if (embedded) { // due to 'dup' we don't know the fileno in advance
@@ -810,6 +817,9 @@ main(int argc, char **argv)
 	case SIGN:
 	case CHECK:
 	case VERIFY:
+#ifndef __GLIBC__
+		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SYS_madvise, 0);
+#endif
 		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0);
 		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(open), 0);
 		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(read), 0);
