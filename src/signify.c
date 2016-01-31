@@ -1,4 +1,4 @@
-/* $OpenBSD: signify.c,v 1.105 2015/12/04 11:05:22 tedu Exp $ */
+/* $OpenBSD: signify.c,v 1.106 2016/01/31 21:38:00 wmark Exp $ */
 /*
  * Copyright (c) 2013 Ted Unangst <tedu@openbsd.org>
  *
@@ -45,6 +45,11 @@
 #include "randombytes.h"
 #include "crypto_api.h"
 #include "bcrypt_pbkdf.c"
+#endif
+
+#if !defined(likely)
+#define likely(x)       __builtin_expect(!!(x), 1)
+#define unlikely(x)     __builtin_expect(!!(x), 0)
 #endif
 
 #define SIGBYTES crypto_sign_ed25519_BYTES
@@ -775,42 +780,49 @@ main(int argc, char **argv)
 
 	scmp_filter_ctx ctx;
 	ctx = seccomp_init(SCMP_ACT_KILL); // results in SIGSYS and an entry in the kernel log
-	seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(rt_sigreturn), 0);
-	seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(exit_group), 0);
-	seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(exit), 0);
-	seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(close), 0);
+	if (unlikely(ctx == NULL))
+		err(71, "this system does not have Seccomp");
+	int
+	rc  = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(rt_sigreturn), 0);
+	rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(exit_group), 0);
+	rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(exit), 0);
+	rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(close), 0);
 #ifndef __GLIBC__
-	seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SYS_writev, 0);
-	seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SYS_brk, 0);
+	rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SYS_writev, 0);
+	rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SYS_brk, 0);
 #endif
+	if (unlikely(rc != 0))
+		err(77, "a rule in the Seccomp preamble has been rejected");
 
 	switch (verb) {
 	case GENERATE:
 	case SIGN:
 #ifdef __NR_getrandom
-		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(getrandom), 0);
+		rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(getrandom), 0);
 #else
 #ifdef SYS_getrandom
-		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SYS_getrandom, 0);
+		rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SYS_getrandom, 0);
 #endif
 #endif
-		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 0);
+		rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 0);
 #ifndef __GLIBC__
-		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SYS_rt_sigprocmask, 0);
+		rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SYS_rt_sigprocmask, 0);
 #endif
 		break;
 	case VERIFY:
 		if (embedded) { // due to 'dup' we don't know the fileno in advance
-			seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 0);
+			rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 0);
 			break;
 		}
 	case CHECK:
 		// mark, 2016-01-19: {2, GE, LE} does not work
-		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 1,
+		rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 1,
 			SCMP_CMP(0, SCMP_CMP_EQ, STDOUT_FILENO));
-		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 1,
+		rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 1,
 			SCMP_CMP(0, SCMP_CMP_EQ, STDERR_FILENO));
 	}
+	if (unlikely(rc != 0))
+		err(77, "a rule in the first Seccomp block has been rejected");
 
 	switch (verb) {
 	case GENERATE:
@@ -818,32 +830,36 @@ main(int argc, char **argv)
 	case CHECK:
 	case VERIFY:
 #ifndef __GLIBC__
-		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SYS_madvise, 0);
+		rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SYS_madvise, 0);
 #endif
-		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0);
-		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(open), 0);
-		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(read), 0);
+		rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0);
+		rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(open), 0);
+		rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(read), 0);
 
-		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(ioctl), 0);
-		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(mmap), 2,
+		rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(ioctl), 0);
+		rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(mmap), 2,
 			SCMP_A0(SCMP_CMP_EQ, (size_t)NULL),
 			SCMP_A5(SCMP_CMP_EQ, 0)
 		);
-		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(munmap), 2,
+		rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(munmap), 2,
 			SCMP_A0(SCMP_CMP_NE, (size_t)NULL),
 			SCMP_A1(SCMP_CMP_GE, 0)
 		);
-		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(rt_sigaction), 0);
+		rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(rt_sigaction), 0);
 
-		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(dup), 0);
+		rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(dup), 0);
 		break;
 	default:
-		seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 1,
+		rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 1,
 			SCMP_CMP(0, SCMP_CMP_EQ, STDERR_FILENO));
 		break;
 	}
+	if (unlikely(rc != 0))
+		err(77, "a rule in the last Seccomp block has been rejected");
 
-	seccomp_load(ctx);
+	rc = seccomp_load(ctx);
+	if (unlikely(rc != 0))
+		err(77, "cannot load Seccomp ruleset");
 #endif /* __gnu_linux__ */
 
 #ifndef VERIFYONLY
