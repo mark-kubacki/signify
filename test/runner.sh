@@ -83,7 +83,7 @@ test_is_compatible_with_openbsds() {
   cd $WORKDIR
 
   curl --fail --silent --show-error --location --remote-name-all \
-    http://ftp.hostserver.de/pub/OpenBSD/5.6/amd64/SHA256.sig \
+    http://ftp.openbsd.org/pub/OpenBSD/5.6/amd64/SHA256.sig \
     https://github.com/jpouellet/signify-osx/raw/master/src/etc/signify/openbsd-56-base.pub
 
   >/dev/null "$EXE" -Vep openbsd-56-base.pub -x SHA256.sig -m -
