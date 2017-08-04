@@ -1,9 +1,9 @@
 Signify ported from OpenBSD to Linux
 =====================================
-[![Build Status](https://semaphoreci.com/api/v1/projects/4c824f23-d918-4935-b686-29126a212b5c/455018/badge.svg)](https://semaphoreci.com/wmark/signify)
+[![build status](https://hub.blitznote.com/src/signify/badges/master/build.svg)](https://hub.blitznote.com/src/signify/commits/master)
 
 with these differences:
- * Randomness is provided by syscall 'getrandom' to Linux (>= 3.18)
+ * Randomness is provided by syscall 'getrandom' (Linux ≥3.18)
  * or RDRAND.
  * Compiles to a static binary of less than 180KiB (less than 270KiB with *Seccomp* and *musl-libc*).
 

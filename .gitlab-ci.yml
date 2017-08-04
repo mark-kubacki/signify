@@ -1,0 +1,34 @@
+compile:
+  stage: build
+  before_script:
+  - if [[ ! -s /usr/include/seccomp.h ]]; then
+      apt-get -q update;
+      apt-get -y install libseccomp-dev libseccomp2;
+    fi
+  - sed -i
+      -e "/^add_executable/s@signify@signify~$(dpkg --print-architecture)@"
+      -e "/^TARGET_LINK_LIBRARIES/s@signify@signify~$(dpkg --print-architecture)@"
+      CMakeLists.txt
+  script:
+  - mkdir -p build
+  - cd build/
+  - if [[ "$(dpkg --print-architecture)" == "amd64" ]]; then
+      env CFLAGS="-Os -march=westmere -mtune=intel" cmake ..;
+    else
+      env CFLAGS="-Os" cmake ..;
+    fi
+  - make |& grep -v -F "libcurl"
+  - mv signify~* ../
+  - cd ..
+  - file signify~*
+  - ldd signify~*
+  artifacts:
+    expire_in: 1 week
+    paths:
+    - signify~*
+
+test:
+  stage: test
+  image: blitznote/debootstrap-amd64:16.04
+  script:
+  - test/runner.sh ./signify~$(dpkg --print-architecture)
