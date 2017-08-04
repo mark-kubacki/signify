@@ -7,6 +7,7 @@ if [[ ! -e "$1" ]]; then
   exit 1
 fi
 EXE="$(realpath "$1")"
+TDIR="$(dirname "$(realpath "$0")")"
 
 declare -a on_exit_items
 
@@ -82,11 +83,7 @@ test_is_compatible_with_openbsds() {
   add_on_exit "rm -rf '$WORKDIR'"
   cd $WORKDIR
 
-  curl --fail --silent --show-error --location --remote-name-all \
-    http://ftp.openbsd.org/pub/OpenBSD/5.6/amd64/SHA256.sig \
-    https://github.com/jpouellet/signify-osx/raw/master/src/etc/signify/openbsd-56-base.pub
-
-  >/dev/null "$EXE" -Vep openbsd-56-base.pub -x SHA256.sig -m -
+  >/dev/null "$EXE" -Vep "${TDIR}"/testdata/openbsd-5.6/openbsd-56-base.pub -x "${TDIR}"/testdata/openbsd-5.6/SHA256.sig -m -
 }
 
 if [ "${host_cpu_has_rdrand}" = true ] || \
@@ -97,5 +94,8 @@ else
   >&2 printf "old host CPU; some tests have been skipped\n"
 fi
 
-test_verify_real_example; >&2 printf "#"
+#test_verify_real_example; >&2 printf "#"
 test_is_compatible_with_openbsds; >&2 printf "#"
+
+printf "\n"
+exit 0
