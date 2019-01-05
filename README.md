@@ -17,18 +17,18 @@ Usage
 In this example the binary file *signify* gets signed and verified:
 ```bash
 # generate a keypair
-$ signify -G -c "W. Mark Kubacki <wmark@hurrikane.de>" -p mark.pub -s mark.sec
+$ signify -G -c "Your Name <y.name@example.com>" -p mark.pub -s mark.sec
 
 # sign (usually a small file, like the output of: sha512sum …)
-$ signify -S -x signify.sig -s mark.sec -m signify
+$ signify -S -x signify.sig -s mark.sec -m thefilename
 
 # verify
-$ signify -V -x signify.sig -p mark.pub -m signify
+$ signify -V -x signify.sig -p mark.pub -m thefilename
 Signature Verified
 ```
 
-Let X be the message (»file«), if X{,.sig} exist the signature file gets found automatically and you can write:
+Or shorthand for if `thefilename` and a similarly named `thefilane.sig` exist:
 ```bash
-$ signify -V -p mark.pub -m X
+$ signify -V -p mark.pub -m thefilename
 Signature Verified
 ```

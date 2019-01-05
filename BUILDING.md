@@ -8,9 +8,9 @@
 
   * Seccomp library, `libseccomp-dev` for Ubuntu and `sys-libs/libseccomp` for Gentoo
 
-  * (optional)[Ninja](https://ninja-build.org/), known as `ninja-build` to *apt* and `dev-util/ninja` to *portage*
+  * (optional) [Ninja](https://ninja-build.org/), known as `ninja-build` to *apt* and `dev-util/ninja` to *portage*
 
-  * (optional)BASH to run the tests
+  * (optional) BASH to run the tests
 
 ## Building
 
@@ -18,15 +18,18 @@ Using Ninja:
 
     mkdir build
     cd $_
-    CFLAGS="-Os -march=corei7 -mtune=corei7" cmake -GNinja ..
+    CFLAGS="-Os -march=westmere -mtune=intel" cmake -GNinja ..
     ninja
 
 Using Make:
 
     mkdir build
     cd $_
-    CFLAGS="-Os -march=corei7 -mtune=corei7" cmake ..
+    CFLAGS="-Os -march=silvermont -mno-movbe -mtune=intel" cmake ..
     make
+
+The latter *CFLFAGS* will match Intel's *Ivy Bridge* architecture sans *AVX* as well as *Silvermont*, and later.
+AMD, including *Zen v1*, has a more diverse instruction set portfolio, and a common denominator looks more verbose. Sorry.
 
 ## Variants
 
