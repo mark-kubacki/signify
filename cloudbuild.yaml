@@ -1,0 +1,45 @@
+tags: ['c', 'cmake', 'security']
+
+steps:
+- name: 'blitznote/cmake'
+  id: 'compile'
+  env: ['CFLAGS=-Os -march=silvermont -mno-movbe -mtune=intel']
+  dir: 'build'
+  entrypoint: 'bash'
+  args:
+  - -c
+  - |
+    sed -i -e 's@ universe@@g' /etc/apt/sources.list \
+    && apt-get -q update \
+    && apt-get -y --no-install-recommends install \
+          libseccomp-dev;
+    cmake -GNinja ..;
+    ninja
+
+- name: 'blitznote/debase:16.04'
+  id: 'test'
+  args: ['test/runner.sh', 'build/signify']
+
+- name: 'blitznote/debase:16.04'
+  id: 'package deb'
+  env: ['VERSION=1.106.1-2']
+  entrypoint: 'bash'
+  args:
+  - -c
+  - |
+    mkdir -p .release/{DEBIAN,usr/bin,usr/share/man/man1};
+    mv build/signify .release/usr/bin/;
+    cat signify.1 | bzip2 -9c >.release/usr/share/man/man1/signify.1.bz2;
+    cp -a debian/* .release/DEBIAN/;
+    sed -i \
+      -e "/^Version/c\Version\x3a $${VERSION}" \
+      -e "/^Architecture/c\Architecture\x3a $(dpkg --print-architecture)" \
+      -e "/^Installed-Size/c\Installed-Size\x3a $(find .release/usr -type f -print0 | du -sc --apparent-size --files0-from=- | tail -n 1 | cut -f 1)" \
+      .release/DEBIAN/control;
+    dpkg-deb -z9 -Zxz --build .release "signify-linux_$${VERSION}_$(dpkg --print-architecture).deb";
+    dpkg --info "signify-linux_$${VERSION}_$(dpkg --print-architecture).deb";
+
+#artifacts:
+#  objects:
+#    location: 'gs://some-bucket/some-dir/'
+#    paths: ['signify*.deb']
