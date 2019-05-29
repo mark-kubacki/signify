@@ -92,7 +92,7 @@ init_cpu_support_flag(void)
 	__cpuid(1, eax, ebx, ecx, edx);
 	cached_cpu_supports_rdrand = !!(ecx & bit_RDRND);
 	eax=0, ebx=0, ecx=0, edx=0;
-	__cpuid(7, eax, ebx, ecx, edx);
+	__cpuid_count(7, 0, eax, ebx, ecx, edx);
 	cached_cpu_supports_rdseed = !!(ebx & bit_RDSEED);
 }
 
