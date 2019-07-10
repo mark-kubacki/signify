@@ -82,15 +82,32 @@ sys_getrandom (unsigned char *buf, size_t buflen)
 
 /* START: RDRAND and RDSEED support */
 #ifdef CPU_RAND
-static int cached_cpu_supports_rdrand;
-static int cached_cpu_supports_rdseed;
+static int cached_cpu_supports_rdrand = 0;
+static int cached_cpu_supports_rdseed = 0;
 
 void __attribute__((constructor))
 init_cpu_support_flag(void)
 {
-	unsigned int eax=0, ebx=0, ecx=0, edx=0;
-	__cpuid(1, eax, ebx, ecx, edx);
-	cached_cpu_supports_rdrand = !!(ecx & bit_RDRND);
+	register unsigned int eax=0, ebx=0, ecx=0, edx=0;
+	__cpuid_count(1, 0, eax, ebx, ecx, edx);
+	if (!(ecx & bit_RDRND)) {
+		return;
+	}
+
+	/* Exclude cpus that have not been properly initialized. */
+	register size_t x, y;
+	asm volatile("xor %0, %0 \n"
+		"rdrand %0 \n"
+		"mov %1, %0 \n"
+		"pause \n"
+		"lfence \n"
+		"rdrand %1 \n"
+		: "=abcd"(x), "=abcd"(y));
+	if (x == y) { // also try: popcnt(x) == popcnt(y)
+		return; // Overwhelmingly likely buggy, don't use.
+	}
+	cached_cpu_supports_rdrand = 1;
+
 	eax=0, ebx=0, ecx=0, edx=0;
 	__cpuid_count(7, 0, eax, ebx, ecx, edx);
 	cached_cpu_supports_rdseed = !!(ebx & bit_RDSEED);
