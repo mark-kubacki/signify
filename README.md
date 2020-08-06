@@ -1,6 +1,5 @@
 Signify ported from OpenBSD to Linux
 =====================================
-[![build status](https://hub.blitznote.com/src/signify/badges/master/build.svg)](https://hub.blitznote.com/src/signify/commits/master)
 
 with these differences:
  * Randomness is provided by syscall 'getrandom' (Linux ≥3.18)
@@ -14,16 +13,15 @@ and if you are permitted to use them in another work.
 Usage
 ------
 
-In this example the binary file *signify* gets signed and verified:
 ```bash
 # generate a keypair
 $ signify -G -c "Your Name <y.name@example.com>" -p mark.pub -s mark.sec
 
-# sign (usually a small file, like the output of: sha512sum …)
-$ signify -S -x signify.sig -s mark.sec -m thefilename
+# sign (usually a small file, like the output of: sha512sum …) "thefilename"
+$ signify -S -x thefilename.sig -s mark.sec -m thefilename
 
 # verify
-$ signify -V -x signify.sig -p mark.pub -m thefilename
+$ signify -V -x thefilename.sig -p mark.pub -m thefilename
 Signature Verified
 ```
 

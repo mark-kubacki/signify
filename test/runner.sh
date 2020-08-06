@@ -71,7 +71,7 @@ test_verify_real_example() {
   cd $WORKDIR
 
   curl --fail --silent --show-error --location --remote-name-all \
-    https://github.com/Blitznote/signify/releases/download/1.100/{mark.pub,signify.sig,signify}
+    https://github.com/wmark/signify/releases/download/1.100/{mark.pub,signify.sig,signify}
   mv signify some-binary
 
   >/dev/null 2>&1 "$EXE" -V -x signify.sig -p mark.pub -m some-binary

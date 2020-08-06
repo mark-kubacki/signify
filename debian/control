@@ -1,11 +1,11 @@
 Package: signify-linux
-Version: 1.106.1
+Version: 1.106.3
 Architecture: amd64
-Maintainer: Mark Kubacki <wmark@hurrikane.de>
+Maintainer: Mark Kubacki <mark@hurrikane.de>
 Description: The signify utility creates and verifies cryptographic signatures.
 Section: utils
 Priority: important
 Installed-Size: 172
-Homepage: https://github.com/Blitznote/signify
+Homepage: https://github.com/wmark/signify
 Conflicts: signify-openbsd
 Provides: signify
