@@ -1,48 +1,39 @@
-compile:amd64:
+default:
+  image: marketplace.gcr.io/google/ubuntu1804
+
+compile:
   stage: build
-  tags:
-  - amd64
   before_script:
-  - if [[ ! -s /usr/include/seccomp.h ]]; then
-      apt-get -q update;
-      apt-get -y install libseccomp-dev libseccomp2;
-    fi
-  - sed -i
-      -e "/^add_executable/s@signify@signify~$(dpkg --print-architecture)@"
-      -e "/^TARGET_LINK_LIBRARIES/s@signify@signify~$(dpkg --print-architecture)@"
-      CMakeLists.txt
+  - apt-get -q update
+  - apt-get -y --no-install-recommends --allow-downgrades --fix-broken install \
+      gcc cmake ninja-build pkg-config \
+      libc6-dev libseccomp-dev libseccomp2
   script:
   - mkdir -p build
   - cd build/
-  - if [[ "$(dpkg --print-architecture)" == "amd64" ]]; then
-      env CFLAGS="-Os -march=westmere -mtune=intel" cmake ..;
-    else
-      env CFLAGS="-Os" cmake ..;
-    fi
-  - make |& grep -v -F "libcurl"
-  - mv signify~* ../
-  - cd ..
-  - file signify~*
-  - ldd signify~*
+  - env CFLAGS="-Os" cmake -GNinja ..
+  - ninja
+  - mv signify ../
   artifacts:
     expire_in: 1 week
     paths:
-    - signify~*
+    - signify
 
 test:
   stage: test
-  image: blitznote/debootstrap-amd64:16.04
   script:
-  - test/runner.sh ./signify~$(dpkg --print-architecture)
+  - test/runner.sh ./signify
 
-bundle_deb:amd64:
+bundle_deb:
   stage: deploy
-  tags:
-  - amd64
+  before_script:
+  - apt-get -q update
+  - apt-get -y --no-install-recommends --allow-downgrades --fix-broken install \
+      dpkg xz-utils bzip2
   script:
-  - export VERSION="$(git describe | cut -d '-' -f 1)-$(git describe | cut -d '-' -f 2)bn"
+  - export VERSION="$(head -n 1 src/signify.c | cut -d ' ' -f 4)"
   - mkdir -p .release/{DEBIAN,usr/bin,usr/share/man/man1}
-  - cp -a --reflink=auto signify~$(dpkg --print-architecture) .release/usr/bin/signify
+  - mv signify .release/usr/bin/
   - cat signify.1 | bzip2 -9c >.release/usr/share/man/man1/signify.1.bz2
   - cp -a debian/* .release/DEBIAN/
   - sed -i

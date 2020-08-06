@@ -1,26 +1,26 @@
 tags: ['c', 'cmake', 'security']
 
 steps:
-- name: 'blitznote/cmake'
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '--file=Dockerfile.buildenv', '--tag=local/cloud-builders/cmake', '.']
+
+- name: 'local/cloud-builders/cmake'
   id: 'compile'
-  env: ['CFLAGS=-Os -march=silvermont -mno-movbe -mtune=intel']
+  env: ['CFLAGS=-Os']
   dir: 'build'
   entrypoint: 'bash'
   args:
   - -c
   - |
-    sed -i -e 's@ universe@@g' /etc/apt/sources.list \
-    && apt-get -q update \
-    && apt-get -y --no-install-recommends install \
-          libseccomp-dev;
     cmake -GNinja ..;
     ninja
 
-- name: 'blitznote/debase:16.04'
+- name: 'gcr.io/cloud-builders/curl'
   id: 'test'
+  entrypoint: 'bash'
   args: ['test/runner.sh', 'build/signify']
 
-- name: 'blitznote/debase:16.04'
+- name: 'local/cloud-builders/cmake'
   id: 'package deb'
   env: ['VERSION=1.106.1-2']
   entrypoint: 'bash'
