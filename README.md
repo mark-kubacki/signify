@@ -17,16 +17,16 @@ Usage
 # generate a keypair
 $ signify -G -c "Your Name <y.name@example.com>" -p mark.pub -s mark.sec
 
-# sign (usually a small file, like the output of: sha512sum …) "thefilename"
-$ signify -S -x thefilename.sig -s mark.sec -m thefilename
+# sign (usually a small file, like the output of: sha512sum …) "TheFileName"
+$ signify -S -x TheFileName.sig -s mark.sec -m TheFileName
 
 # verify
-$ signify -V -x thefilename.sig -p mark.pub -m thefilename
+$ signify -V -x TheFileName.sig -p mark.pub -m TheFileName
 Signature Verified
 ```
 
-Or shorthand for if `thefilename` and a similarly named `thefilane.sig` exist:
+Or shorthand for if `TheFileName` and a similarly named `TheFileName.sig` exist:
 ```bash
-$ signify -V -p mark.pub -m thefilename
+$ signify -V -p mark.pub -m TheFileName
 Signature Verified
 ```
