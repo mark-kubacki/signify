@@ -1,5 +1,5 @@
 default:
-  image: marketplace.gcr.io/google/ubuntu1804
+  image: 'ubuntu:18.04'
 
 compile:
   stage: build
@@ -7,7 +7,8 @@ compile:
   - apt-get -q update
   - apt-get -y --no-install-recommends --allow-downgrades --fix-broken install \
       gcc cmake ninja-build pkg-config \
-      libc6-dev libseccomp-dev libseccomp2
+      libc6-dev libseccomp-dev libseccomp2 \
+      curl
   script:
   - mkdir -p build
   - cd build/
