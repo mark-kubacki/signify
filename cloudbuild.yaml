@@ -2,10 +2,12 @@ tags: ['c', 'cmake', 'security']
 
 steps:
 - name: 'gcr.io/cloud-builders/docker'
+  id: 'build container with gcc'
   args: ['build', '--file=Dockerfile.buildenv', '--tag=localhost/cloud-builders/cmake', '.']
 
 - name: 'localhost/cloud-builders/cmake'
-  id: 'compile'
+  id: 'compile with gcc'
+  waitFor: ['build container with gcc']
   env: ['CFLAGS=-Os']
   dir: 'build'
   entrypoint: 'bash'
@@ -20,8 +22,25 @@ steps:
   entrypoint: 'bash'
   args: ['test/runner.sh', 'build/signify']
 
+- name: 'gcr.io/cloud-builders/docker'
+  id: 'build container with clang'
+  args: ['build', '--file=Dockerfile.buildenv-clang', '--tag=localhost/cloud-builders/cmake:clang', '.']
+
+- name: 'localhost/cloud-builders/cmake:clang'
+  id: 'compile with clang'
+  waitFor: ['build container with clang']
+  env: ['CFLAGS=-Os']
+  dir: 'build-clang'
+  entrypoint: 'bash'
+  args:
+  - -c
+  - |
+    cmake -GNinja ..;
+    ninja
+
 - name: 'mirror.gcr.io/library/ubuntu'
   id: 'package deb'
+  waitFor: ['test']
   env: ['VERSION=1.106.3']
   entrypoint: 'bash'
   args:

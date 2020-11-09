@@ -1,0 +1,14 @@
+FROM marketplace.gcr.io/google/clang-ubuntu
+
+SHELL ["/bin/bash", "-c"]
+
+RUN sed -i -e '/multiverse$/d' /etc/apt/sources.list \
+ && apt-get -q update \
+ && apt-get -y --no-install-recommends --no-upgrade --fix-broken install \
+      cmake ninja-build pkg-config \
+      dpkg xz-utils bzip2 \
+      libc6-dev libseccomp-dev libseccomp2 \
+      curl \
+ && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+ENTRYPOINT ["/usr/bin/cmake"]
